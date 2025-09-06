@@ -43,7 +43,7 @@ services:
       retries: 10
 
   syncstorage:
-    #You can also use ghcr.io/oratorian/syncstorage-rs:latest as image
+    #You can also use ghcr.io/oratorian/mozilla-syncstorage-rs:latest as image
     image: oratorian/syncstorage-rs:latest 
     container_name: syncstorage-rs
     ports:
