@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: orastorage-mysql
+    container_name: syncstorage-mysql
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: syncstorage_rs
@@ -22,7 +22,7 @@ services:
     #build:
       #context: .
       #dockerfile: Dockerfile
-    container_name: orastorage-rs
+    container_name: syncstorage-rs
     ports:
       - "8000:8000"
     environment:
@@ -31,7 +31,7 @@ services:
       SYNC_PORT: "8000"
       
       # Master secret - MUST be exactly 64 characters
-      SYNC_MASTER_SECRET: "BRDGEJYNHYL5DIL4UGOTRHURDCAUHBPOCWZA7VJMAP3KHQWSG7XO277NPSW5TAW3"
+      SYNC_MASTER_SECRET: ""
       
       # Database configuration
       SYNC_SYNCSTORAGE__DATABASE_URL: "mysql://syncuser:syncpassword@mysql:3306/syncstorage_rs"
@@ -48,7 +48,7 @@ services:
       SYNC_TOKENSERVER__FXA_BROWSERID_AUDIENCE: "https://token.services.mozilla.com"
       SYNC_TOKENSERVER__FXA_BROWSERID_ISSUER: "api.accounts.firefox.com"
       SYNC_TOKENSERVER__FXA_BROWSERID_SERVER_URL: "https://verifier.accounts.firefox.com/v2"
-      SYNC_TOKENSERVER__FXA_METRICS_HASH_SECRET: "BRDGEJYNHYL5DIL4UGOTRHURDCAUHBPOCWZA7VJMAP3KHQWSG7XO277NPSW5TAW3"
+      SYNC_TOKENSERVER__FXA_METRICS_HASH_SECRET: ""
       
       # Logging
       SYNC_HUMAN_LOGS: "1"

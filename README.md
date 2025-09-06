@@ -1,3 +1,8 @@
+![Build Status](https://github.com/Oratorian/mozilla-syncstorage-rs/actions/workflows/build-syncstorage.yml/badge.svg)
+![Docker Pulls](https://img.shields.io/docker/pulls/oratorian/syncstorage-rs)
+![Docker Image Size](https://img.shields.io/docker/image-size/oratorian/syncstorage-rs/latest)
+![GitHub Release](https://img.shields.io/github/v/release/Oratorian/mozilla-syncstorage-rs)
+
 # Syncstorage-RS Docker Image
 
 Mozilla Sync Storage Server (syncstorage-rs) with full tokenserver support and Python 3.13.
@@ -11,18 +16,7 @@ Mozilla Sync Storage Server (syncstorage-rs) with full tokenserver support and P
 
 ## Quick Start
 
-### Step 1: Create Required MySQL Databases
-
-```sql
-CREATE DATABASE syncstorage_rs;
-CREATE DATABASE tokenserver_rs;
-CREATE USER 'syncuser'@'%' IDENTIFIED BY 'your-secure-password';
-GRANT ALL PRIVILEGES ON syncstorage_rs.* TO 'syncuser'@'%';
-GRANT ALL PRIVILEGES ON tokenserver_rs.* TO 'syncuser'@'%';
-FLUSH PRIVILEGES;
-```
-
-### Step 2: Using Docker Compose (Recommended)
+### Step 1: Using Docker Compose (Recommended)
 
 Create a `docker-compose.yml`:
 
@@ -49,7 +43,8 @@ services:
       retries: 10
 
   syncstorage:
-    image: yourusername/syncstorage-rs:latest
+    #You can also use ghcr.io/oratorian/syncstorage-rs:latest as image
+    image: oratorian/syncstorage-rs:latest 
     container_name: syncstorage-rs
     ports:
       - "8000:8000"
@@ -108,10 +103,10 @@ FLUSH PRIVILEGES;
 
 Then run:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-### Step 3: Verify Installation
+### Step 2: Verify Installation
 
 ```bash
 # Check if server is running
