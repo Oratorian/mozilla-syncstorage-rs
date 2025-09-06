@@ -1,0 +1,63 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: orastorage-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: syncstorage_rs
+      MYSQL_USER: syncuser
+      MYSQL_PASSWORD: syncpassword
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  syncstorage:
+    image: oratorian/syncstorage-rs:latest
+    #build:
+      #context: .
+      #dockerfile: Dockerfile
+    container_name: orastorage-rs
+    ports:
+      - "8000:8000"
+    environment:
+      # Server configuration
+      SYNC_HOST: "0.0.0.0"
+      SYNC_PORT: "8000"
+      
+      # Master secret - MUST be exactly 64 characters
+      SYNC_MASTER_SECRET: "BRDGEJYNHYL5DIL4UGOTRHURDCAUHBPOCWZA7VJMAP3KHQWSG7XO277NPSW5TAW3"
+      
+      # Database configuration
+      SYNC_SYNCSTORAGE__DATABASE_URL: "mysql://syncuser:syncpassword@mysql:3306/syncstorage_rs"
+      SYNC_SYNCSTORAGE__ENABLED: "true"
+      
+      # Tokenserver configuration (optional but recommended)
+      SYNC_TOKENSERVER__DATABASE_URL: "mysql://syncuser:syncpassword@mysql:3306/tokenserver_rs"
+      SYNC_TOKENSERVER__ENABLED: "true"
+      SYNC_TOKENSERVER__RUN_MIGRATIONS: "true"
+      
+      # FxA configuration (adjust for your setup)
+      SYNC_TOKENSERVER__FXA_EMAIL_DOMAIN: "api.accounts.firefox.com"
+      SYNC_TOKENSERVER__FXA_OAUTH_SERVER_URL: "https://oauth.accounts.firefox.com/v1"
+      SYNC_TOKENSERVER__FXA_BROWSERID_AUDIENCE: "https://token.services.mozilla.com"
+      SYNC_TOKENSERVER__FXA_BROWSERID_ISSUER: "api.accounts.firefox.com"
+      SYNC_TOKENSERVER__FXA_BROWSERID_SERVER_URL: "https://verifier.accounts.firefox.com/v2"
+      SYNC_TOKENSERVER__FXA_METRICS_HASH_SECRET: "BRDGEJYNHYL5DIL4UGOTRHURDCAUHBPOCWZA7VJMAP3KHQWSG7XO277NPSW5TAW3"
+      
+      # Logging
+      SYNC_HUMAN_LOGS: "1"
+      RUST_LOG: "info"
+      
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

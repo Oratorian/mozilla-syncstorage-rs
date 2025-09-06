@@ -1,0 +1,176 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 0.20.1)'
+        required: true
+        type: string
+      syncstorage_version:
+        description: 'Syncstorage-rs version to build'
+        required: true
+        default: '0.20.1'
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: false
+        type: string
+        default: 'New release with latest updates'
+      push_to_dockerhub:
+        description: 'Push to Docker Hub'
+        required: true
+        type: boolean
+        default: true
+      push_to_ghcr:
+        description: 'Push to GitHub Container Registry'
+        required: true
+        type: boolean
+        default: true
+
+env:
+  DOCKER_REPO: oratorian/syncstorage-rs
+  GHCR_REPO: ghcr.io/${{ github.repository_owner }}/mozilla-syncstorage-rs
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      if: inputs.push_to_dockerhub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Login to GitHub Container Registry
+      if: inputs.push_to_ghcr
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Prepare tags
+      id: tags
+      run: |
+        TAGS=""
+        if [[ "${{ inputs.push_to_dockerhub }}" == "true" ]]; then
+          TAGS="${TAGS}${{ env.DOCKER_REPO }}:${{ inputs.version }},"
+          TAGS="${TAGS}${{ env.DOCKER_REPO }}:latest,"
+        fi
+        if [[ "${{ inputs.push_to_ghcr }}" == "true" ]]; then
+          TAGS="${TAGS}${{ env.GHCR_REPO }}:${{ inputs.version }},"
+          TAGS="${TAGS}${{ env.GHCR_REPO }}:latest,"
+        fi
+        # Remove trailing comma
+        TAGS=${TAGS%,}
+        echo "TAGS=$TAGS" >> $GITHUB_OUTPUT
+
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        build-args: |
+          SYNCSTORAGE_VERSION=${{ inputs.syncstorage_version }}
+        tags: ${{ steps.tags.outputs.TAGS }}
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.version=${{ inputs.version }}
+          org.opencontainers.image.description=Mozilla Sync Storage Server with Python 3.13 and tokenserver support
+          org.opencontainers.image.licenses=MPL-2.0
+
+    - name: Create and push git tag
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git tag -a v${{ inputs.version }} -m "Release v${{ inputs.version }}"
+        git push origin v${{ inputs.version }}
+
+    - name: Generate Release Notes
+      run: |
+        cat << EOF > release_notes.md
+        ## Release v${{ inputs.version }}
+        
+        ${{ inputs.release_notes }}
+        
+        ### 🐳 Docker Images
+        
+        This release is available from multiple registries:
+        
+        #### Docker Hub
+        \`\`\`bash
+        docker pull ${{ env.DOCKER_REPO }}:${{ inputs.version }}
+        docker pull ${{ env.DOCKER_REPO }}:latest
+        \`\`\`
+        
+        #### GitHub Container Registry (ghcr.io)
+        \`\`\`bash
+        docker pull ${{ env.GHCR_REPO }}:${{ inputs.version }}
+        docker pull ${{ env.GHCR_REPO }}:latest
+        \`\`\`
+        
+        ### 📦 What's Included
+        - Syncstorage-RS version: ${{ inputs.syncstorage_version }}
+        - Python 3.13 support
+        - PyFxA for tokenserver
+        - Multi-architecture support (amd64, arm64)
+        
+        ### 🚀 Quick Start
+        
+        Using Docker Hub:
+        \`\`\`bash
+        docker run -d \\
+          --name syncstorage \\
+          -p 8000:8000 \\
+          -e SYNC_HOST=0.0.0.0 \\
+          -e SYNC_MASTER_SECRET=\$(openssl rand -hex 32) \\
+          -e SYNC_SYNCSTORAGE__DATABASE_URL=mysql://user:pass@host/db \\
+          ${{ env.DOCKER_REPO }}:${{ inputs.version }}
+        \`\`\`
+        
+        Using GitHub Container Registry:
+        \`\`\`bash
+        docker run -d \\
+          --name syncstorage \\
+          -p 8000:8000 \\
+          -e SYNC_HOST=0.0.0.0 \\
+          -e SYNC_MASTER_SECRET=\$(openssl rand -hex 32) \\
+          -e SYNC_SYNCSTORAGE__DATABASE_URL=mysql://user:pass@host/db \\
+          ${{ env.GHCR_REPO }}:${{ inputs.version }}
+        \`\`\`
+        
+        ### 📦 Package Links
+        - [Docker Hub](https://hub.docker.com/r/${{ env.DOCKER_REPO }})
+        - [GitHub Packages](https://github.com/${{ github.repository }}/pkgs/container/syncstorage-rs)
+        
+        ### 📖 Documentation
+        - [Setup Guide](https://github.com/${{ github.repository }}/blob/main/README.md)
+        - [Upstream Project](https://github.com/mozilla-services/syncstorage-rs)
+        EOF
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ inputs.version }}
+        name: v${{ inputs.version }}
+        body_file: release_notes.md
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
